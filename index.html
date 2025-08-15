@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ru" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <title>Инфографика — современный дашборд (демо)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { color-scheme: dark light; }
+    html { font-feature-settings: "ss01" on, "ss02" on; }
+    .card { border-radius: 16px; background: #0f172a; border: 1px solid rgba(148,163,184,.12); box-shadow: 0 10px 30px rgba(2,6,23,.25); }
+    .soft { backdrop-filter: blur(6px); background: linear-gradient(180deg, rgba(148,163,184,.06), rgba(148,163,184,.03)); border: 1px solid rgba(148,163,184,.12); }
+    .kpi { background: linear-gradient(135deg, rgba(14,165,233,.14), rgba(45,202,115,.14)); }
+  </style>
+  <!-- Chart.js + datalabels -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+</head>
+<body class="h-full bg-slate-900 text-slate-100 selection:bg-sky-500/30">
+  <div class="max-w-7xl mx-auto p-6 md:p-10 space-y-8">
+
+    <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-sky-500 to-emerald-500"></div>
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold">Инфографика — демо дашборда</h1>
+          <p class="text-sm text-slate-400">Фейковые ответы по 5 вопросам + 2 сводных графика. Всего: <span id="kpi-total" class="text-slate-200 font-semibold">60</span> участников.</p>
+        </div>
+      </div>
+      <div class="text-xs text-slate-400">Демо-визуализация • Tailwind + Chart.js</div>
+    </header>
+
+    <section class="grid sm:grid-cols-3 gap-4">
+      <div class="card p-4 kpi">
+        <div class="text-xs uppercase tracking-wide text-slate-300">Импортозамещение — Да</div>
+        <div id="kpi-yes" class="text-3xl font-semibold mt-1">—</div>
+        <div class="text-xs text-slate-400 mt-1">Доля от ответов на Q2</div>
+      </div>
+      <div class="card p-4">
+        <div class="text-xs uppercase tracking-wide text-slate-300">Средний срок</div>
+        <div id="kpi-avg" class="text-3xl font-semibold mt-1">—</div>
+        <div class="text-xs text-slate-400 mt-1">По Q3 (годы, без «не будем»)</div>
+      </div>
+      <div class="card p-4">
+        <div class="text-xs uppercase tracking-wide text-slate-300">Бюджет &gt; 1 млрд</div>
+        <div id="kpi-gt1" class="text-3xl font-semibold mt-1">—</div>
+        <div class="text-xs text-slate-400 mt-1">По Q4</div>
+      </div>
+    </section>
+
+    <section class="grid lg:grid-cols-2 gap-6">
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="font-semibold">1) Роль в компании</h2>
+          <span class="text-xs text-slate-400">Круговая диаграмма</span>
+        </div>
+        <div class="h-[340px]"><canvas id="q1"></canvas></div>
+      </div>
+
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="font-semibold">2) Обязательно ли импортозамещение?</h2>
+          <span class="text-xs text-slate-400">Столбики с процентами</span>
+        </div>
+        <div class="h-[340px]"><canvas id="q2"></canvas></div>
+      </div>
+
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="font-semibold">3) Сроки импортозамещения</h2>
+          <span class="text-xs text-slate-400">Столбики</span>
+        </div>
+        <div class="h-[340px]"><canvas id="q3"></canvas></div>
+      </div>
+
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="font-semibold">4) Может ли стоить &gt; 1 усл. ед.?</h2>
+          <span class="text-xs text-slate-400">Столбики</span>
+        </div>
+        <div class="h-[340px]"><canvas id="q4"></canvas></div>
+      </div>
+    </section>
+
+    <section class="grid lg:grid-cols-2 gap-6">
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="font-semibold">Сводный 1: Q2 × Q3</h2>
+        </div>
+        <div class="h-[360px]"><canvas id="cross1"></canvas></div>
+      </div>
+
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="font-semibold">Сводный 2: Q3 × Q4</h2>
+        </div>
+        <div class="h-[360px]"><canvas id="cross2"></canvas></div>
+      </div>
+    </section>
+
+    <section class="card p-4">
+      <h2 class="font-semibold mb-3">5) Открытые ответы (подборка тем)</h2>
+      <div id="chips" class="flex flex-wrap gap-2"></div>
+      <ul id="open" class="mt-4 grid md:grid-cols-2 gap-2"></ul>
+    </section>
+  </div>
+
+  <script>
+    // ----- ФЕЙК-ДАННЫЕ -----
+    const dataQ1 = [
+      { label: "ИТ-директор", value: 21 },
+      { label: "Коммерческий директор", value: 18 },
+      { label: "Операционный директор", value: 15 },
+      { label: "Другое", value: 6 },
+    ];
+    const dataQ2 = [
+      { label: "Да", value: 35 },
+      { label: "Нет", value: 10 },
+      { label: "Не знаю", value: 15 },
+    ];
+    const dataQ3 = [
+      { label: "Год", value: 20 },
+      { label: "Два", value: 18 },
+      { label: "Три", value: 10 },
+      { label: "Четыре", value: 6 },
+      { label: "Не будем ничего делать", value: 6 },
+    ];
+    const dataQ4 = [
+      { label: "Да", value: 32 },
+      { label: "Нет", value: 28 },
+    ];
+    const dataQ5 = [
+      "Дефицит специалистов",
+      "Интеграция с унаследованными системами",
+      "Миграция данных и совместимость",
+      "Бюджетные ограничения",
+      "Сроки закупок и согласований",
+      "Обучение персонала и сопротивление изменениям",
+      "Недоступность компонентов",
+      "Риски простоя при переключении",
+      "Качество поддержки у вендоров",
+    ];
+    const crossQ2Q3 = {
+      "Да":      { "Год": 12, "Два": 11, "Три": 6, "Четыре": 3, "Не будем ничего делать": 3 },
+      "Нет":     { "Год": 3,  "Два": 3,  "Три": 2, "Четыре": 1, "Не будем ничего делать": 1 },
+      "Не знаю": { "Год": 5,  "Два": 4,  "Три": 2, "Четыре": 2, "Не будем ничего делать": 2 },
+    };
+    const crossQ3Q4 = {
+      "Год": { "Да": 11, "Нет": 9 },
+      "Два": { "Да": 10, "Нет": 8 },
+      "Три": { "Да": 6,  "Нет": 4 },
+      "Четыре": { "Да": 3, "Нет": 3 },
+      "Не будем ничего делать": { "Да": 2, "Нет": 4 },
+    };
+    const TOTAL = 60;
+
+    // ----- ЦВЕТА И ПОМОЩНИКИ -----
+    const palette = {
+      sky:   ["#38bdf8", "#0ea5e9"],
+      green: ["#34d399", "#10b981"],
+      amber: ["#fbbf24", "#f59e0b"],
+      violet:["#c084fc", "#a78bfa"],
+      slate: ["#94a3b8", "#64748b"],
+      red:   ["#f87171", "#ef4444"],
+    };
+    function gradient(ctx, c1, c2) {
+      const h = ctx.canvas.height || 300;
+      const g = ctx.createLinearGradient(0, h, 0, 0);
+      g.addColorStop(0, c1);
+      g.addColorStop(1, c2);
+      return g;
+    }
+    function percent(v, total) { return total ? Math.round((v/total)*100) : 0; }
+
+    // KPI
+    document.getElementById("kpi-total").textContent = TOTAL.toString();
+    const yes = dataQ2.find(d => d.label === "Да").value;
+    const gt1 = dataQ4.find(d => d.label === "Да").value;
+    const avgYears = (() => {
+      const map = { "Год":1, "Два":2, "Три":3, "Четыре":4 };
+      const usable = dataQ3.filter(d => d.label in map);
+      const sum = usable.reduce((a,d)=> a + map[d.label]*d.value, 0);
+      const count = usable.reduce((a,d)=> a + d.value, 0);
+      return (sum / Math.max(1,count)).toFixed(1);
+    })();
+    document.getElementById("kpi-yes").textContent = `${yes} (${percent(yes, dataQ2.reduce((a,b)=>a+b.value,0))}%)`;
+    document.getElementById("kpi-gt1").textContent = `${gt1} (${percent(gt1, dataQ4.reduce((a,b)=>a+b.value,0))}%)`;
+    document.getElementById("kpi-avg").textContent = `${avgYears} года`;
+
+    // Chart.js
+    Chart.register(ChartDataLabels);
+    const common = {
+      plugins: {
+        legend: { labels: { color: "#cbd5e1", boxWidth: 12 } },
+        tooltip: {
+          backgroundColor: "rgba(2,6,23,0.9)",
+          titleColor: "#e2e8f0",
+          bodyColor: "#e2e8f0",
+          borderColor: "rgba(148,163,184,.2)",
+          borderWidth: 1,
+          callbacks: {
+            label: (ctx) => {
+              const val = ctx.parsed.y ?? ctx.parsed;
+              const t = ctx.chart.config.data.__total ?? TOTAL;
+              return ` ${val} чел. (${percent(val, t)}%)`;
+            }
+          }
+        },
+        datalabels: {
+          color: "#cbd5e1",
+          font: { weight: "600", size: 11 },
+          formatter: (v, ctx) => {
+            const total = ctx.chart.config.data.__total ?? TOTAL;
+            const p = percent(v, total);
+            return p >= 6 ? `${p}%` : "";
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: "#cbd5e1" }, grid: { color: "rgba(148,163,184,.12)" } },
+        y: { ticks: { color: "#cbd5e1" }, grid: { color: "rgba(148,163,184,.12)" }, beginAtZero: true, suggestedMax: 20 }
+      }
+    };
+
+    // Q1 — Donut
+    (function(){
+      const c = document.getElementById("q1").getContext("2d");
+      new Chart(c, {
+        type: "doughnut",
+        data: {
+          labels: dataQ1.map(d=>d.label),
+          datasets: [{
+            data: dataQ1.map(d=>d.value),
+            borderWidth: 0,
+            hoverOffset: 6,
+            backgroundColor: [
+              gradient(c, ...palette.sky),
+              gradient(c, ...palette.green),
+              gradient(c, ...palette.amber),
+              gradient(c, ...palette.violet),
+            ]
+          }],
+          __total: dataQ1.reduce((a,b)=>a+b.value,0)
+        },
+        options: {
+          cutout: "58%",
+          plugins: {
+            legend: { position: "bottom" },
+            tooltip: common.plugins.tooltip,
+            datalabels: {
+              color: "#e2e8f0",
+              formatter: (v, ctx) => `${ctx.chart.data.labels[ctx.dataIndex]}: ${v}`
+            }
+          }
+        }
+      });
+    })();
+
+    // Bars
+    function makeBars(canvasId, data, colors){
+      const c = document.getElementById(canvasId).getContext("2d");
+      new Chart(c, {
+        type: "bar",
+        data: {
+          labels: data.map(d=>d.label),
+          datasets: [{
+            data: data.map(d=>d.value),
+            backgroundColor: data.map((_,i)=>gradient(c, ...colors[i%colors.length])),
+            borderRadius: 10,
+            borderSkipped: false
+          }],
+          __total: data.reduce((a,b)=>a+b.value,0)
+        },
+        options: JSON.parse(JSON.stringify(common))
+      });
+    }
+    makeBars("q2", dataQ2, [palette.green, palette.red, palette.slate]);
+    makeBars("q3", dataQ3, [palette.sky, palette.green, palette.amber, palette.violet, palette.slate]);
+    makeBars("q4", dataQ4, [palette.green, palette.red]);
+
+    // 100% stacked
+    function makeStacked100(canvasId, categories, series, matrix, colors){
+      const c = document.getElementById(canvasId).getContext("2d");
+      const totals = categories.map(cat => Object.values(matrix[cat]).reduce((a,b)=>a+b,0));
+      const datasets = series.map((s, i) => ({
+        label: s,
+        data: categories.map((cat, idx) => {
+          const v = matrix[cat][s] ?? 0;
+          const t = totals[idx] || 1;
+          return Math.round((v/t)*100);
+        }),
+        backgroundColor: gradient(c, ...colors[i%colors.length]),
+        borderRadius: 10,
+        borderSkipped: false,
+        stack: "a"
+      }));
+      new Chart(c, {
+        type: "bar",
+        data: { labels: categories, datasets, __total: 100 },
+        options: {
+          plugins: {
+            legend: { position: "bottom", labels: { color: "#cbd5e1" } },
+            tooltip: {
+              backgroundColor: "rgba(2,6,23,0.9)",
+              titleColor: "#e2e8f0",
+              bodyColor: "#e2e8f0",
+              callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${ctx.parsed.y}%` }
+            },
+            datalabels: {
+              color: "#0ea5e9",
+              font: { weight: "700", size: 10 },
+              formatter: (v) => v >= 12 ? `${v}%` : ""
+            }
+          },
+          scales: {
+            x: { stacked: true, ticks: { color: "#cbd5e1" }, grid: { color: "rgba(148,163,184,.12)" } },
+            y: { stacked: true, ticks: { color: "#cbd5e1", callback: (v)=> v + "%" }, grid: { color: "rgba(148,163,184,.12)" }, suggestedMax: 100, beginAtZero: true }
+          }
+        }
+      });
+    }
+    makeStacked100(
+      "cross1",
+      ["Да","Нет","Не знаю"],
+      ["Год","Два","Три","Четыре","Не будем ничего делать"],
+      crossQ2Q3,
+      [palette.sky, palette.green, palette.amber, palette.violet, palette.slate]
+    );
+    makeStacked100(
+      "cross2",
+      ["Год","Два","Три","Четыре","Не будем ничего делать"],
+      ["Да","Нет"],
+      crossQ3Q4,
+      [palette.green, palette.red]
+    );
+
+    // Q5 — чипы + список (🚫 не используем переменную 'top', переименовано)
+    const freq = {};
+    dataQ5.forEach(t => t.toLowerCase().split(/\s+/).forEach(w => {
+      if (w.length < 4) return;
+      freq[w] = (freq[w]||0)+1;
+    }));
+    const topWords = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const chips = document.getElementById("chips");
+    topWords.forEach(([w,c]) => {
+      const el = document.createElement("span");
+      el.className = "soft text-xs text-slate-200 px-3 py-1 rounded-full";
+      el.textContent = `${w} · ${c}`;
+      chips.appendChild(el);
+    });
+    const open = document.getElementById("open");
+    dataQ5.forEach(t=>{
+      const li = document.createElement("li");
+      li.className = "soft rounded-xl p-3 text-sm";
+      li.textContent = t;
+      open.appendChild(li);
+    });
+  </script>
+</body>
+</html>
